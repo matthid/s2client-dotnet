@@ -4,7 +4,14 @@
     <TargetFramework>netstandard2.0</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="Library.fs" />
+    <Compile Include="Async.fs" />
+    <Compile Include="ProtobufConnection.fs" />
+    <Compile Include="Sc2SettingsFile.fs" />
+    <Compile Include="Instance.fs" />
+    <Compile Include="Sc2Game.fs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\s2client-proto\s2client-proto.csproj" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>
