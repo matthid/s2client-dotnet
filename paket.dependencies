@@ -1,0 +1,33 @@
+source https://api.nuget.org/v3/index.json
+storage:none
+
+nuget FSharp.Core
+nuget Google.Protobuf
+nuget Google.Protobuf.Tools
+
+// [ FAKE GROUP ]
+group NetcoreBuild
+    source https://api.nuget.org/v3/index.json
+    storage: none
+
+    nuget FSharp.Core ~> 4.1.0
+    nuget System.AppContext prerelease
+    nuget Paket.Core prerelease
+    nuget Fake.Core.Targets prerelease
+    nuget Fake.Core.Globbing prerelease
+    nuget Fake.Core.SemVer prerelease
+    nuget Fake.IO.FileSystem prerelease
+    nuget Fake.IO.Zip prerelease
+    nuget Fake.Core.ReleaseNotes prerelease
+    nuget Fake.DotNet.AssemblyInfoFile prerelease
+    nuget Fake.DotNet.MsBuild prerelease
+    nuget Fake.DotNet.Cli prerelease
+    nuget Fake.DotNet.NuGet prerelease
+    nuget Fake.DotNet.Paket prerelease
+    nuget Fake.DotNet.FSFormatting prerelease
+    nuget Fake.DotNet.Testing.MSpec prerelease
+    nuget Fake.DotNet.Testing.XUnit2 prerelease
+    nuget Fake.DotNet.Testing.NUnit prerelease
+    nuget Fake.Windows.Chocolatey prerelease
+    nuget Fake.Tools.Git prerelease
+    nuget Mono.Cecil prerelease
