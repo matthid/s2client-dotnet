@@ -36,7 +36,7 @@ Target.Create "CreateProtobuf" (fun _ ->
     let protoTools = PaketHelper.getFolder lock.RootPath groupName pack
     let protoPaths =
         [ protoTools @@ "tools"
-          @"C:\proj\sc2\s2client-proto" ]
+          @"external/s2client-proto" ]
     let concatArgs args =
         let allArgs =
             args
@@ -49,7 +49,7 @@ Target.Create "CreateProtobuf" (fun _ ->
         |> String.concat " "
     let csharpOpts = "--csharp_out=\"src/s2client-proto\""
     let protoArgs =
-        !! @"C:\proj\sc2\s2client-proto\s2clientprotocol\*.proto"
+        !! @"external/s2client-proto/s2clientprotocol/*.proto"
         |> concatArgs
     let protocArgs =
         sprintf "%s %s %s" protoPathArgs csharpOpts protoArgs
