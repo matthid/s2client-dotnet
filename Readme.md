@@ -1,4 +1,4 @@
-## Starcraft 2 Client API for .NET
+## StarCraft II Client API for .NET
 
 A .NET (C#, F#, VB.Net) port of https://github.com/Blizzard/s2client-api into .Net "Standard" 2.0.
 
@@ -77,7 +77,7 @@ In F# it looks a bit nicer ;)
 
 The empty bot function will ensure you can play manually. Obviously you want to implement that with something useful.
 
-Further documentation (regarding the datastructures and custom Starcraft 2 Builds)
+Further documentation (regarding the datastructures and custom  StarCraft II Builds)
  - https://github.com/Blizzard/s2client-proto/tree/master/s2clientprotocol
  - https://github.com/Blizzard/s2client-proto
  - Reference C++ Implementation https://github.com/Blizzard/s2client-api
