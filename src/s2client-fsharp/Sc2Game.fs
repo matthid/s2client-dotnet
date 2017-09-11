@@ -30,6 +30,11 @@ module Sc2Game =
           | Participant (_, race, _) -> Instance.Participant race
           | Computer (race, difficulty) -> Instance.Computer(race, difficulty)
           | Observer _ -> Instance.Observer
+        static member CreateParticipant (instance : Instance.Sc2Instance, race : Race, bot : System.Func<GameState, SC2APIProtocol.Action seq>) =
+            Participant.Participant(instance, race, (fun data -> bot.Invoke(data) |> Seq.toList))
+        static member CreateComputer(race, difficulty) = Participant.Computer(race, difficulty)
+        static member CreateObserver(instance: Instance.Sc2Instance, observer : System.Action<GameState>) =
+            Participant.Observer(instance, (fun data -> observer.Invoke(data)))
 
     type GameSettings = 
       { Realtime : bool
@@ -45,7 +50,15 @@ module Sc2Game =
             UseFeatureLayers = None
             UseRender = None
             FullScreen = false }
-
+        static member Empty = GameSettings.OfUserSettings (Sc2SettingsFile.Sc2SettingsFile.Empty)
+        member x.WithMap map = { x with Map = map }
+        member x.WithStepsize stepSize = { x with StepSize = stepSize }
+        member x.WithRealtime realtime = { x with Realtime = realtime }
+        member x.WithFeatureLayers featureLayers = { x with UseFeatureLayers = Some featureLayers }
+        member x.WithNoFeatureLayers () = { x with UseFeatureLayers = None }
+        member x.WithRender render = { x with UseRender = Some render }
+        member x.WithNoRender () = { x with UseRender = None }
+        member x.WithFullScreen fullscreen = { x with FullScreen = fullscreen }
 
     let private setupAndConnect (gameSettings:GameSettings) (participants: Participant list) = async {
         // Create game with first client
@@ -104,7 +117,8 @@ module Sc2Game =
     }
 
 
-    let runGame (gameSettings:GameSettings) (participants: Participant list) = async {
+    let runGame (gameSettings:GameSettings) (participants: Participant seq) = async {
+        let participants = participants |> Seq.toList
         let! playerIds = setupAndConnect gameSettings participants
 
         let merged =

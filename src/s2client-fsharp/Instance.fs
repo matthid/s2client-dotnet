@@ -26,6 +26,12 @@ module Instance =
           { Port = s.Port
             Executable = s.Executable
             Timeout = s.Timeout }
+        member x.WithPort port = { x with Port = Some port }
+        member x.WithNoPort () = { x with Port = None }
+        member x.WithTimeout timeout = { x with Timeout = Some timeout }
+        member x.WithNoTimeout () = { x with Timeout = None }
+        member x.WithExecutable executable = { x with Executable = Some executable }
+        member x.WithNoExecutable () = { x with Executable = None }
 
     let start (settings:StartSettings) = async {
         let userSettings = lazy Sc2SettingsFile.settingsFromUserDir()

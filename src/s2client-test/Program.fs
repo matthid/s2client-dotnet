@@ -7,8 +7,6 @@ open SC2APIProtocol
 
 [<EntryPoint>]
 let main argv =
-    let tok = new System.Threading.CancellationTokenSource()
-
     let userSettings = Sc2SettingsFile.settingsFromUserDir()
 
     let instanceSettings = Instance.StartSettings.OfUserSettings userSettings

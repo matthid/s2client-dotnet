@@ -1,5 +1,6 @@
 namespace Starcraft2
 
+
 /// Extensions for async workflows.
 [<AutoOpen>]
 module AsyncExtensions = 
@@ -51,3 +52,9 @@ module AsyncExtensions =
                 else
                     cont ()
             task.ContinueWith(Action<Task>(continuation)) |> ignore)
+
+module Runner =
+    let run a =
+        a |> Async.RunSynchronously
+    let runTask a =
+        a |> Async.StartAsTask
