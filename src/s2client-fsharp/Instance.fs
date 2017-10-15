@@ -52,6 +52,8 @@ module Instance =
                 match userSettings.Value.Executable with
                 | Some exec -> exec
                 | None -> failwithf "No executable specified."
+        if not (System.IO.File.Exists executable) then
+            failwithf "Executable '%s' doesn't exist, please try to specify the executable by hand via StartSettings or UserSettings." executable
         let sc2Dir =  executable |> System.IO.Path.GetDirectoryName |> System.IO.Path.GetDirectoryName |> System.IO.Path.GetDirectoryName
         let supportDir = System.IO.Path.Combine(sc2Dir, "Support64")
         let proc = System.Diagnostics.ProcessStartInfo(executable)
@@ -62,7 +64,7 @@ module Instance =
         // -windowy
         proc.Arguments <- sprintf "-listen %s -port %d -displayMode 0" address port
         proc.WorkingDirectory <- supportDir
-        printfn "Starting SC2 ... (%s)" proc.Arguments
+        printfn "Starting SC2 ... (%s %s)" executable proc.Arguments
         let processInstance = System.Diagnostics.Process.Start(proc)
 
         let watch = System.Diagnostics.Stopwatch.StartNew()

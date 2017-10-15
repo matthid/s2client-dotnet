@@ -83,3 +83,22 @@ Further documentation (regarding the datastructures and custom  StarCraft II Bui
  - Reference C++ Implementation https://github.com/Blizzard/s2client-api
 
 If you use the library don't hesitate to let me know ;)
+
+## Building
+
+Requirements:
+ - Fake 5 (install via [chocolatey](https://chocolatey.org/packages/fake) `choco install fake --pre` or unzip [and add to path](https://github.com/fsharp/FAKE/releases))
+ - Install [Dotnet SDK 2](https://www.microsoft.com/net/download/core)
+
+
+1. Build the C# proto files:
+   - `fake run build.fsx`
+2. Build/Package the project
+   - `dotnet pack src/s2client-dotnet.sln -o C:\proj\sc2\s2client-dotnet\release`
+
+   Now the `C:\proj\sc2\s2client-dotnet\release` directory contains the nuget packages.
+
+3. Run the test projects
+   - `dotnet run --project s2client-testCSharp/s2client-testCSharp.csproj`
+   - `dotnet run --project s2client-test/s2client-test.csproj`
+

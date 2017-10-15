@@ -14,6 +14,16 @@ module Sc2SettingsFile =
             RealTime = None
             Map = None
             Timeout = None }
+        member x.WithExecutable executable = { x with Executable = Some executable }
+        member x.WithNoExecutable () = { x with Executable = None }
+        member x.WithPort port = { x with Port = Some port }
+        member x.WithNoPort () = { x with Port = None }
+        member x.WithRealTime realTime = { x with RealTime = Some realTime }
+        member x.WithNoRealTime () = { x with RealTime = None }
+        member x.WithMap map = { x with Map = Some map }
+        member x.WithNoMap () = { x with Map = None }
+        member x.WithTimeout timeout = { x with Timeout = Some timeout }
+        member x.WithNoTimeout () = { x with Timeout = None }
 
     let settingsFromUserDir () =
         let userFolder = System.Environment.GetFolderPath(System.Environment.SpecialFolder.MyDocuments)
