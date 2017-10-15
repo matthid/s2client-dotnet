@@ -1,5 +1,5 @@
 #if !DOTNETCORE
-#I @"C:\Users\matth\.nuget\packages\FAKE\5.0.0-alpha015\tools"
+#I @"C:\Users\matth\.nuget\packages\FAKE\5.0.0-alpha018\tools"
 #r @"FakeLib.dll"
 #I @"C:\Users\matth\.nuget\packages\System.Net.Http\4.3.2\lib\net46"
 #r "System.Net.Http.dll"
@@ -37,6 +37,7 @@ Target.Create "CreateProtobuf" (fun _ ->
     let protoPaths =
         [ protoTools @@ "tools"
           @"external/s2client-proto" ]
+        |> List.map (Path.GetFullPath)
     let concatArgs args =
         let allArgs =
             args
