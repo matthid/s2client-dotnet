@@ -17,6 +17,7 @@ group NetcoreBuild
     nuget Fake.Core.Globbing prerelease
     nuget Fake.Core.SemVer prerelease
     nuget Fake.IO.FileSystem prerelease
+    nuget Fake.Api.GitHub prerelease
     nuget Fake.IO.Zip prerelease
     nuget Fake.Core.ReleaseNotes prerelease
     nuget Fake.DotNet.AssemblyInfoFile prerelease

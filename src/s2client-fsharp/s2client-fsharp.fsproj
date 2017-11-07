@@ -2,6 +2,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
+    <AssemblyName>s2client-dotnet</AssemblyName>
+    <PackageId>s2client-dotnet</PackageId>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Async.fs" />
