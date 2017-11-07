@@ -52,11 +52,11 @@ let deps = Paket.Dependencies.Locate()
 let lock = deps.GetLockFile()
 
 Target.Create "Clean" (fun _ ->
-    !! "src/*/*/bin"
+    !! "src/**/bin"
     |> Shell.CleanDirs
 
-    !! "src/*/*/obj/*.nuspec"
-    |> File.deleteAll
+    !! "src/**/obj"
+    |> Shell.CleanDirs
 
     Shell.CleanDirs [releaseNugetDir]
 )
@@ -82,7 +82,7 @@ Target.Create "DotnetPackage" (fun _ ->
     Environment.setEnvironVar "Authors" (String.separated ";" authors)
     Environment.setEnvironVar "Description" projectDescription
     Environment.setEnvironVar "PackageReleaseNotes" (release.Notes |> String.toLines)
-    Environment.setEnvironVar "PackageTags" "build;fake;f#"
+    Environment.setEnvironVar "PackageTags" "dotnet;starcraft;f#"
     //Environment.setEnvironVar "PackageIconUrl" "https://raw.githubusercontent.com/fsharp/FAKE/fee4f05a2ee3c646979bf753f3b1f02d927bfde9/help/content/pics/logo.png"
     Environment.setEnvironVar "PackageProjectUrl" gitRepositoryUrl
     Environment.setEnvironVar "PackageLicenseUrl" (gitRepositoryUrl + "/blob/ae301a8af0b596b55b4d1f9a60e1197f66af9437/LICENSE.txt")
@@ -164,13 +164,11 @@ Target.Create "FastRelease" (fun _ ->
         | s when not (System.String.IsNullOrWhiteSpace s) -> s
         | _ -> failwith "please set the github_token environment variable to a github personal access token with repro access."
 
-    //let files = 
-    //    runtimes @ [ "portable"; "packages" ]
-    //    |> List.map (fun n -> sprintf "nuget/dotnetcore/Fake.netcore/fake-dotnetcore-%s.zip" n)
+    let files = !! (releaseNugetDir + "/*.nupkg")
     
     GitHub.CreateClientWithToken token
     |> GitHub.DraftNewRelease gitOwner gitName release.NugetVersion (release.SemVer.PreRelease <> None) release.Notes
-    //|> GitHub.UploadFiles files    
+    |> GitHub.UploadFiles files    
     |> GitHub.PublishDraft
     |> Async.RunSynchronously
 )

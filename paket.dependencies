@@ -1,4 +1,4 @@
-version 5.120.0
+version 5.122.0
 source https://api.nuget.org/v3/index.json
 storage:none
 
@@ -7,7 +7,7 @@ nuget Google.Protobuf
 nuget Google.Protobuf.Tools
 
 // [ FAKE GROUP ]
-group NetcoreBuild
+group Build
     source https://api.nuget.org/v3/index.json
     storage: none
 
@@ -33,3 +33,6 @@ group NetcoreBuild
     nuget Fake.Windows.Chocolatey prerelease
     nuget Fake.Tools.Git prerelease
     nuget Mono.Cecil prerelease
+
+    source https://dotnet.myget.org/F/roslyn-tools/api/v3/index.json
+    nuget RoslynTools.ReferenceAssemblies storage: packages
