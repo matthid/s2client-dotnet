@@ -97,6 +97,6 @@ Requirements:
 Now the `release/nuget` folder contains the packages.
 
 2. Run the test projects
-   - `dotnet run --project s2client-testCSharp/s2client-testCSharp.csproj`
-   - `dotnet run --project s2client-test/s2client-test.csproj`
+   - `dotnet run --project src/s2client-testCSharp/s2client-testCSharp.csproj`
+   - `dotnet run --project src/s2client-test/s2client-test.csproj`
 
