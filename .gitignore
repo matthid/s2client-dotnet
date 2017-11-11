@@ -1,8 +1,8 @@
 #ignore thumbnails created by windows
 Thumbs.db
 .DS_Store
+
 #Ignore files build by Visual Studio
-docs/
 docsBuild/
 report/
 test/
