@@ -6,7 +6,7 @@ A .NET (C#, F#, VB.Net) port of https://github.com/Blizzard/s2client-api into .N
 
 ## NuGet
 
-Hopefully soon.
+> https://www.nuget.org/packages/s2client-dotnet
 
 ## Why
 
