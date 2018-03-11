@@ -219,6 +219,14 @@ module ProtbufConnection =
         checkError joinGameResponse.Error joinGameResponse.ErrorDetails
         return joinGameResponse.PlayerId, response.Status }
 
+    let getGameInfo (cl : Sc2Connection) = async {
+        let request = new SC2APIProtocol.Request()
+        request.GameInfo <- new RequestGameInfo()
+        let! response = sendRequest cl request
+        let gameInfoResponse = response.GameInfo
+        checkNullAndWarnings response gameInfoResponse
+        return gameInfoResponse, response.Status }
+
     let getObservation disableFog (cl : Sc2Connection) = async {
         let request = new SC2APIProtocol.Request()
         request.Observation <- new RequestObservation()

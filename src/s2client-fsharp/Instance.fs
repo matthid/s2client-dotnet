@@ -175,6 +175,12 @@ module Instance =
 
         return playerId
     }
+    let getGameInfo (instance:Sc2Instance) = async {
+        // Do the join command
+        let! gameInfo, status = ProtbufConnection.getGameInfo instance.Connection
+        assert (status = Status.InGame)
+        return gameInfo }
+
     let getObservation disableFog (instance:Sc2Instance) = async {
         // Do the join command
         let! responseObs, status = ProtbufConnection.getObservation disableFog instance.Connection
