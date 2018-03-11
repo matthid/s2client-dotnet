@@ -9,12 +9,14 @@ type GameState =
     NewObservation : SC2APIProtocol.ResponseObservation
     // more global state
     PlayerId : PlayerId
+    GameInfo : SC2APIProtocol.ResponseGameInfo
      }
     static member Empty playerId = 
       { LastObservation = None
         LastActions = []
         NewObservation = null
-        PlayerId = playerId }
+        PlayerId = playerId
+        GameInfo = null }
 
 type Sc2Bot = GameState -> SC2APIProtocol.Action list
 type Sc2Observer = GameState -> unit
@@ -141,6 +143,12 @@ module Sc2Game =
                 | Computer _, _ -> None
                 | _ -> failwithf "Expected playerId when participant or observer but not when computer. %A" (part,playerId)
             )
+
+        // Get the static gameInfo
+        for (playerId, instance, bot) in relevantPlayers do
+            let! gameInfo = Instance.getGameInfo instance
+            let state = getState playerId
+            updateState playerId { state with GameInfo = gameInfo }
 
         // Game loop
         while true do

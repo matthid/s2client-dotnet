@@ -1,3 +1,6 @@
+#### 1.0.0-alpha004 - 2018-03-11
+ * Static GameInfo data can now be accessed from the GameState - https://github.com/matthid/s2client-dotnet/pull/5
+
 #### 1.0.0-alpha003 - 2017-11-07
  * Fix release script
 
