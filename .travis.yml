@@ -1,0 +1,22 @@
+language: csharp
+sudo: required
+dist: trusty # Ubuntu 14.04
+dotnet : 2.1.4
+env:
+ - HOME=/home/travis APPDATA=/home/travis LocalAppData=/home/travis
+
+
+before install:
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew update               ; fi
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install openssl      ; fi
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew link --force openssl ; fi
+
+mono:
+  - 5.0.1
+
+script: 
+  - dotnet build build.proj
+
+branches:
+  except:
+    - gh-pages

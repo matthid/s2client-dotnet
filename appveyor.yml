@@ -1,0 +1,18 @@
+image: Visual Studio 2017
+install:
+  - cinst fake -pre
+build_script:
+# See https://stackoverflow.com/a/12866669/1269722
+# Problem is that colors are lost
+# Don't blame me but powershell is the bigest crap on earth
+  - cmd: fake.exe -v run build.fsx
+
+#on_failure:
+#  - appveyor PushArtifact FAKE.svclog
+test: off
+environment:
+  PAKET_BOOTSTRAPPER_TRACE: true
+
+artifacts:
+  - path: 'release\nuget\*.nupkg'
+    type: NuGetPackage
