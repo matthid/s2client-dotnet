@@ -87,7 +87,7 @@ If you use the library don't hesitate to let me know ;)
 ## Building
 
 Requirements:
- - Fake 5 (install via [chocolatey](https://chocolatey.org/packages/fake) `choco install fake --pre` or unzip [and add to path](https://github.com/fsharp/FAKE/releases))
+ - Fake 5 (install via [chocolatey](https://chocolatey.org/packages/fake) `choco install fake` or unzip [and add to path](https://github.com/fsharp/FAKE/releases))
  - Install [Dotnet SDK 2](https://www.microsoft.com/net/download/core) (only required for running tests as of today)
 
 
@@ -97,6 +97,8 @@ Requirements:
 Now the `release/nuget` folder contains the packages.
 
 2. Run the test projects
+   - Download and extract the "Ladder 2017 Season 1" pack from https://github.com/Blizzard/s2client-proto
+
    - `dotnet run --project src/s2client-testCSharp/s2client-testCSharp.csproj`
-   - `dotnet run --project src/s2client-test/s2client-test.csproj`
+   - `dotnet run --project src/s2client-test/s2client-test.fsproj`
 

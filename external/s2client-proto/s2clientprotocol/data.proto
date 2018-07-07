@@ -35,7 +35,6 @@ message AbilityData {
   float footprint_radius = 13;                           // Estimation of the footprint size. Need a better footprint.
   bool is_instant_placement = 14;                        // Placement next to an existing structure, e.g., an add-on like a Tech Lab.
   float cast_range = 15;                                 // Range unit can cast ability without needing to approach target.
-
 }
 
 enum Attribute {
@@ -82,14 +81,15 @@ message UnitTypeData {
   uint32 vespene_cost = 13;
   float food_required = 14;
   float food_provided = 18;
-  uint32 ability_id = 15;                                // This is the ability the builds the unit
+  uint32 ability_id = 15;                                // The ability that builds this unit.
   Race race = 16;
   float build_time = 17;
   bool has_vespene = 19;
   bool has_minerals = 20;
+  float sight_range = 25;                                // Range unit reveals vision.
 
-  repeated uint32 tech_alias = 21;                                // Units this is equivalent to in terms of satisfying tech requirement.
-  uint32 unit_alias = 22;                                // Units that are morphed variants of the same unit.
+  repeated uint32 tech_alias = 21;                                // Other units that satisfy the same tech requirement.
+  uint32 unit_alias = 22;                                // The morphed variant of this unit.
 
   uint32 tech_requirement = 23;                          // Structure required to build this unit. (Or any with the same tech_alias)
   bool require_attached = 24;                            // Whether tech_requirement is an add-on.
@@ -113,4 +113,11 @@ message UpgradeData {
 message BuffData {
   uint32 buff_id = 1;          // Stable ID.
   string name = 2;
+}
+
+message EffectData {
+  uint32 effect_id = 1;          // Stable ID.
+  string name = 2;
+  string friendly_name = 3;
+  float radius = 4;
 }

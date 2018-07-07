@@ -1,14 +1,6 @@
-#if !DOTNETCORE
-#I @"C:\Users\matth\.nuget\packages\FAKE\5.0.0-alpha018\tools"
-#r @"FakeLib.dll"
-#I @"C:\Users\matth\.nuget\packages\System.Net.Http\4.3.2\lib\net46"
-#r "System.Net.Http.dll"
-#I @"C:\Users\matth\.nuget\packages\Chessie\0.6.0\lib\net40"
-#I @"C:\Users\matth\.nuget\packages\Paket.Core\5.92.100\lib\net45"
-#r @"Chessie.dll"
-#r @"Paket.Core.dll"
-#endif
+#load ".fake/build.fsx/intellisense.fsx"
 
+open Paket
 open System
 open System.IO
 open System.Reflection
@@ -16,7 +8,7 @@ open Fake.Core
 open Fake.Api
 open Fake.IO
 open Fake.IO.FileSystemOperators
-open Fake.Core.Globbing.Operators
+open Fake.IO.Globbing.Operators
 open Fake.DotNet
 open Fake.Tools
 let projectName = "s2client-dotnet"
@@ -25,7 +17,7 @@ let projectDescription = "s2client-dotnet - Starcraft 2 Client API for .NET - si
 
 let authors = ["Matthias Dittrich"]
 
-let release = ReleaseNotes.LoadReleaseNotes "docs/RELEASE_NOTES.md"
+let release = ReleaseNotes.load "docs/RELEASE_NOTES.md"
 
 let gitRaw = Environment.environVarOrDefault "gitRaw" "https://raw.github.com/matthid"
 
@@ -43,7 +35,6 @@ let gitHome = "https://github.com/" + gitOwner
 let gitRepositoryUrl = gitHome + "/" + gitName
 
 module PaketHelper =
-    open Paket
     let getFolder root groupName (p : Paket.PackageResolver.PackageInfo) =
         p.Folder root groupName
 
@@ -51,30 +42,19 @@ let cache = Paket.Constants.UserNuGetPackagesFolder
 let deps = Paket.Dependencies.Locate()
 let lock = deps.GetLockFile()
 
-Target.Create "Clean" (fun _ ->
+Target.create "Clean" (fun _ ->
     !! "src/**/bin"
-    |> Shell.CleanDirs
+    |> Shell.cleanDirs
 
     !! "src/**/obj"
-    |> Shell.CleanDirs
+    |> Shell.cleanDirs
 
-    Shell.CleanDirs [releaseNugetDir]
-)
-let Release_2_0_2 options =
-    { options with
-        Cli.InstallerOptions = (fun io ->
-            { io with
-                Branch = "release/2.0.0"
-            })
-        Cli.Channel = None
-        Cli.Version = Cli.Version "2.0.2"
-    }
-
-Target.Create "InstallDotNetSdk" (fun _ ->
-     Cli.DotnetCliInstall Release_2_0_2
+    Shell.cleanDirs [releaseNugetDir]
 )
 
-Target.Create "DotnetPackage" (fun _ ->
+let dotnetSdk = lazy DotNet.install DotNet.Release_2_1_300
+
+Target.create "DotnetPackage" (fun _ ->
     
     let nugetDir = System.IO.Path.GetFullPath releaseNugetDir
 
@@ -88,11 +68,11 @@ Target.Create "DotnetPackage" (fun _ ->
     Environment.setEnvironVar "PackageLicenseUrl" (gitRepositoryUrl + "/blob/ae301a8af0b596b55b4d1f9a60e1197f66af9437/LICENSE.txt")
 
     // dotnet pack
-    Cli.DotnetPack (fun c ->
+    DotNet.pack (fun c ->
         { c with
-            Configuration = Cli.Release
+            Configuration = DotNet.Release
             OutputPath = Some nugetDir
-        }) "src/s2client-dotnet.sln"
+        } |> DotNet.Options.lift dotnetSdk.Value) "src/s2client-dotnet.sln"
 
     !! (nugetDir + "/*.nupkg")
     -- (nugetDir + "/s2client-dotnet*.nupkg")
@@ -100,7 +80,7 @@ Target.Create "DotnetPackage" (fun _ ->
     |> Seq.iter (Shell.rm_rf)
 )
 
-Target.Create "CreateProtobuf" (fun _ ->
+Target.create "CreateProtobuf" (fun _ ->
     let groupName = Paket.Constants.MainDependencyGroup
     let packageName = Paket.Domain.PackageName "Google.Protobuf.Tools"
     let group = lock.GetGroup(groupName)
@@ -128,7 +108,7 @@ Target.Create "CreateProtobuf" (fun _ ->
     let protocArgs =
         sprintf "%s %s %s" protoPathArgs csharpOpts protoArgs
     let exitCode =
-        Process.ExecProcess (fun conf ->
+        Process.execSimple (fun conf ->
         { conf with
             Arguments = protocArgs
             FileName = protoTools @@ "tools/windows_x64/protoc.exe"})
@@ -138,10 +118,10 @@ Target.Create "CreateProtobuf" (fun _ ->
 )
 
 
-Target.Create "PublishNuget" (fun _ ->
+Target.create "PublishNuget" (fun _ ->
     // uses NugetKey environment variable.
     // Timeout atm
-    Paket.Push(fun p ->
+    Paket.push(fun p ->
         { p with
             DegreeOfParallelism = 2
             WorkingDir = releaseNugetDir })
@@ -149,10 +129,10 @@ Target.Create "PublishNuget" (fun _ ->
     //|> Seq.iter nugetPush
 )
 
-Target.Create "FastRelease" (fun _ ->
+Target.create "FastRelease" (fun _ ->
 
-    Git.Staging.StageAll ""
-    Git.Commit.Commit "" (sprintf "Bump version to %s" release.NugetVersion)
+    Git.Staging.stageAll ""
+    Git.Commit.exec "" (sprintf "Bump version to %s" release.NugetVersion)
     let branch = Git.Information.getBranchName ""
     Git.Branches.pushBranch "" "origin" branch
 
@@ -166,25 +146,23 @@ Target.Create "FastRelease" (fun _ ->
 
     let files = !! (releaseNugetDir + "/*.nupkg")
     
-    GitHub.CreateClientWithToken token
-    |> GitHub.DraftNewRelease gitOwner gitName release.NugetVersion (release.SemVer.PreRelease <> None) release.Notes
-    |> GitHub.UploadFiles files    
-    |> GitHub.PublishDraft
+    GitHub.createClientWithToken token
+    |> GitHub.draftNewRelease gitOwner gitName release.NugetVersion (release.SemVer.PreRelease <> None) release.Notes
+    |> GitHub.uploadFiles files    
+    |> GitHub.publishDraft
     |> Async.RunSynchronously
 )
 
-Target.Create "Default" ignore
-Target.Create "Release" ignore
+Target.create "Default" ignore
+Target.create "Release" ignore
 
 open Fake.Core.TargetOperators
 
 "Clean" ==> "Default"
-"InstallDotNetSdk" ==> "Default"
 "CreateProtobuf" ==> "Default"
 "DotnetPackage" ==> "Default"
 
 "Clean"
-    ?=> "InstallDotNetSdk"
     ?=> "DotnetPackage"
 "Clean"
     ?=> "CreateProtobuf"
@@ -200,4 +178,4 @@ open Fake.Core.TargetOperators
 "FastRelease"
     ==> "Release"
 
-Target.RunOrDefault "Default"
+Target.runOrDefault "Default"

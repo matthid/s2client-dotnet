@@ -1,4 +1,4 @@
-version 5.148.0
+version 5.174.2
 source https://api.nuget.org/v3/index.json
 storage:none
 
@@ -11,11 +11,10 @@ group Build
     source https://api.nuget.org/v3/index.json
     storage: none
 
-    nuget FSharp.Core ~> 4.1.0
+    nuget FSharp.Core < 4.5.0
     nuget System.AppContext prerelease
     nuget Paket.Core prerelease
-    nuget Fake.Core.Targets prerelease
-    nuget Fake.Core.Globbing prerelease
+    nuget Fake.Core.Target prerelease
     nuget Fake.Core.SemVer prerelease
     nuget Fake.IO.FileSystem prerelease
     nuget Fake.Api.GitHub prerelease
