@@ -2,26 +2,36 @@ namespace Starcraft2
 
 open SC2APIProtocol
 
-
 type GameState =
-  { LastObservation : SC2APIProtocol.ResponseObservation option
-    LastActions : SC2APIProtocol.Action list
-    NewObservation : SC2APIProtocol.ResponseObservation
-    // more global state
-    PlayerId : PlayerId
-    GameInfo : SC2APIProtocol.ResponseGameInfo
-     }
-    static member Empty playerId = 
-      { LastObservation = None
-        LastActions = []
-        NewObservation = null
-        PlayerId = playerId
-        GameInfo = null }
+    { 
+        LastObservation : SC2APIProtocol.ResponseObservation option
+        LastActions : SC2APIProtocol.Action list
+        NewObservation : SC2APIProtocol.ResponseObservation
+        PlayerId : uint32
+        GameInfo : SC2APIProtocol.ResponseGameInfo
+    }
+
+    static member InitialState playerId observation gameInfo =
+        {
+            LastObservation = None
+            LastActions = []
+            NewObservation = observation
+            PlayerId = playerId
+            GameInfo = gameInfo
+        }
+
+    member this.NextGameState lastActions observation =
+        {this with
+            LastObservation = this.NewObservation |> Some
+            LastActions = lastActions
+            NewObservation = observation
+        }
 
 type Sc2Bot = GameState -> SC2APIProtocol.Action list
 type Sc2Observer = GameState -> unit
 
 module Sc2Game =
+    open Instance
 
     type Participant =
         | Participant of Instance.Sc2Instance * Race * Sc2Bot
@@ -64,24 +74,26 @@ module Sc2Game =
 
     let private setupAndConnect (gameSettings:GameSettings) (participants: Participant list) = async {
         // Create game with first client
-        let firstInstance =
-            participants
-            |> Seq.tryPick (function 
-                | Participant(instance,_,_) -> Some instance
-                | Observer(instance,_) -> Some instance
-                | _ -> None)
-        let firstInstance =            
+        let validateParticipants() =
+            let firstInstance =
+                participants
+                |> Seq.tryPick (function 
+                    | Participant(instance,_,_) -> Some instance
+                    | Observer(instance,_) -> Some instance
+                    | _ -> None)
+                    
             match firstInstance with
-            | None -> failwithf "At least one non-computer participant needs to be added!"
-            | Some s -> s
-
-        
+            | None -> "At least one non-computer participant needs to be added!" |> ConfigError |> Error
+            | Some s -> s |> Ok
+            
         let simpleParticipants = participants |> List.map (fun p -> p.Simple)
-        do! Instance.createGame firstInstance gameSettings.Map simpleParticipants gameSettings.Realtime
 
-        // Join other instances
-        let agents = participants |> Seq.sumBy (function Computer _ -> 0 | _ -> 1)
-        let ports =
+        let createGame firstInstance =
+            Instance.createGame firstInstance gameSettings.Map simpleParticipants gameSettings.Realtime
+
+        let joinOtherInstances _ =
+            let agents = participants |> Seq.sumBy (function Computer _ -> 0 | _ -> 1)
+
             if agents > 1 then
                 let clientPortsRequired =
                     // one is the server
@@ -91,86 +103,114 @@ module Sc2Game =
                 let clients =
                     List.init clientPortsRequired (fun _ -> { Instance.ClientPort.BasePort = Instance.getFreePort();  Instance.ClientPort.GamePort = Instance.getFreePort() } )
 
-                { Instance.SharedPort = shared
-                  Instance.ServerPorts = server
-                  Instance.ClientPorts = clients }
+                { 
+                    Instance.SharedPort = shared
+                    Instance.ServerPorts = server
+                    Instance.ClientPorts = clients 
+                }
                 |> Some
-            else None                                  
+            else None
 
-        let playerIdTasks =
+        let getPlayerIds ports =
             participants
             |> List.map (fun part ->
+                let attachPart x = part, x
                 match part with
-                | Participant (instance, _, _)
-                | Observer (instance, _) ->
-                   Instance.joinGame instance gameSettings.UseFeatureLayers gameSettings.UseRender part.Simple ports
-                   |> Async.StartAsTask
-                   |> Some
-                | _ -> None)              
-        for playerIdTask in playerIdTasks do
-            match playerIdTask with
-            | Some t -> do! t |> Async.AwaitTask |> Async.Ignore
-            | None -> ()
+                |Participant (instance, _, _)
+                |Observer (instance, _) ->
+                    async{
+                        let! playerId = Instance.joinGame instance gameSettings.UseFeatureLayers gameSettings.UseRender part.Simple ports
+                        return playerId |> Result.map Some |> Result.map attachPart
+                    }
+                |_ -> async {return None |> attachPart |> Ok}
+            ) |> Async.Parallel |> Async.RunSynchronously |> List.ofArray |> Result.listFold
 
-        let playerIds =
-            playerIdTasks |> List.map (Option.map (fun pit -> pit.Result))
-
-        return playerIds
+        return!
+            validateParticipants()
+            |> Result.bindAsyncBinder createGame
+            |> Result.bindAsyncInput (joinOtherInstances >> Ok)
+            |> Result.bindAsyncInput getPlayerIds
     }
 
+    type private PlayerData =
+        {
+            PlayerId:uint32
+            Instance:Sc2Instance
+            Bot:Sc2Bot
+        }
+        static member Create playerId instance bot =
+            {
+                PlayerId = playerId
+                Instance = instance
+                Bot = bot
+            }
 
     let runGame (gameSettings:GameSettings) (participants: Participant seq) = async {
-        let participants = participants |> Seq.toList
-        let! playerIds = setupAndConnect gameSettings participants
-
-        let merged =
-            List.zip participants playerIds
-        let state = System.Collections.Concurrent.ConcurrentDictionary<_,GameState>()
-        let getState playerId =
-            state.GetOrAdd(playerId, fun _ -> GameState.Empty playerId)
-        let updateState playerId newState =
-            state.AddOrUpdate(playerId, newState, (fun _ _ -> newState))
-            |> ignore
-
-        let relevantPlayers =
-            merged
-            |> List.choose (fun (part, playerId) ->
+        let getRelevantPlayers players =
+            players
+            |> List.choose (fun (part, playerId) -> 
                 match part, playerId with
-                | Participant (instance, _, bot), Some playerId ->
-                    Some (playerId, instance, bot)
-                | Observer (instance, bot), Some playerId ->
-                    Some (playerId, instance, (fun data -> bot data; []))
-                | Computer _, _ -> None
-                | _ -> failwithf "Expected playerId when participant or observer but not when computer. %A" (part,playerId)
-            )
+                |Participant (instance, _, bot), Some playerId ->
+                    PlayerData.Create playerId instance bot |> Ok |> Some
+                    //(playerId, instance, bot) :: state
+                |Observer (instance, bot), Some playerId ->
+                    PlayerData.Create playerId instance (fun data -> bot data; []) |> Ok |> Some
+                |Computer _, _ -> None
+                | _ -> sprintf "Expected playerId when participant or observer but not when computer. %A" (part,playerId) |> ConfigError |> Error |> Some
+            ) |> Result.listFold
 
         // Get the static gameInfo
-        for (playerId, instance, bot) in relevantPlayers do
-            let! gameInfo = Instance.getGameInfo instance
-            let state = getState playerId
-            updateState playerId { state with GameInfo = gameInfo }
+        let getStaticGameInfo =
+            List.map (fun (player:PlayerData) -> 
+                Instance.getGameInfo player.Instance
+                |> Result.mapAsyncInput (fun gi -> player, gi)
+            ) >> Async.Parallel >> Async.RunSynchronously >> List.ofArray >> Result.listFold
+            
+        let getInitialGameState =
+            List.map (fun (player:PlayerData, gameInfo:ResponseGameInfo) ->
+                Instance.getObservation false player.Instance
+                |> Result.mapAsyncInput (fun obs -> player, GameState.InitialState player.PlayerId obs gameInfo)
+            ) >> Async.Parallel >> Async.RunSynchronously >> List.ofArray >> Result.listFold
 
-        // Game loop
-        while true do
-            for (playerId, instance, bot) in relevantPlayers do
-                let! obs = Instance.getObservation false instance
-                // TODO: Higher level support, GetUnits -> Self -> StartLocation
-                let lastState = getState playerId
-                let state = 
-                    { lastState with 
-                        NewObservation = obs
-                        LastObservation =
-                            if not (isNull lastState.NewObservation) then Some lastState.NewObservation
-                            else None }
-                
-                let actions = bot state
-                if not gameSettings.Realtime then
-                    do! Instance.doStep gameSettings.StepSize instance
+        let rec gameLoop playersResult =
+            match playersResult with
+            |Ok players ->
+                players
+                |> List.map (fun (player:PlayerData, gameState:GameState) ->
+                    let getActions = Result.tryCatch player.Bot (fun _ -> BotError)
 
-                updateState playerId { state with LastActions = actions }
+                    let executeActions actions =
+                        Instance.doActions actions player.Instance //Travis: would this information (ActionResult) ever be useful to a bot? I see no reason against providing it as part of the game state
+                        |> Result.mapAsyncInput (fun x -> actions)
+                    
 
-            // Execute actions
-            for (playerId, instance, bot) in relevantPlayers do
-                let lastState = getState playerId
-                do! Instance.doActions lastState.LastActions instance |> Async.Ignore
-        }
+                    let doStep actions = async{
+                        if not gameSettings.Realtime then
+                            return! 
+                                Instance.doStep gameSettings.StepSize player.Instance
+                                |> Result.mapAsyncInput (fun _ -> actions)
+                        else
+                            return Ok actions
+                    }
+                    
+                    let getNextGameState actions = 
+                        Instance.getObservation false player.Instance
+                        |> Result.mapAsyncInput (fun obs -> player, gameState.NextGameState actions obs)
+
+                    gameState
+                    |> getActions
+                    |> Result.mapAsyncMapper executeActions
+                    |> Result.mapAsync doStep
+                    |> Result.mapAsync getNextGameState
+                ) |> Async.Parallel |> Async.RunSynchronously |> List.ofArray |> Result.listFold |> gameLoop
+            |Error er -> Error er
+
+        let! gameLoopInputs =
+            participants |> List.ofSeq
+            |> setupAndConnect gameSettings 
+            |> Result.bindAsyncInput getRelevantPlayers
+            |> Result.bindAsyncInput getStaticGameInfo
+            |> Result.bindAsyncInput getInitialGameState
+
+        return gameLoopInputs |> gameLoop
+    }

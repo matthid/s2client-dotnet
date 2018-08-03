@@ -6,7 +6,8 @@
     <PackageId>s2client-dotnet</PackageId>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="Async.fs" />
+    <Compile Include="Railway.fs" />
+    <Compile Include="ErrorDefs.fs" />
     <Compile Include="ProtobufConnection.fs" />
     <Compile Include="Sc2SettingsFile.fs" />
     <Compile Include="Instance.fs" />

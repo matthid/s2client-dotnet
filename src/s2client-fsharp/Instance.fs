@@ -4,13 +4,15 @@ open SC2APIProtocol
 
 // manage a starcraft instance
 module Instance =
+    let private checkStatus expectedStatus errorType (x, status) = 
+        if status = expectedStatus then
+            Ok x
+        else
+            Error errorType
 
     type Sc2Instance =
-        { Connection : ProtbufConnection.Sc2Connection; Process : System.Diagnostics.Process }
-        member x.Disconnect (exitInstance:bool) =
-            x.Connection.Disconnect(exitInstance)
-            if (not(x.Process.WaitForExit(1000))) then
-                x.Process.Kill()
+        {Connection:ProtobufConnection.Sc2Connection; Process:System.Diagnostics.Process}
+
     let internal getFreePort () =
         let l = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, 0)
         l.Start()
@@ -45,41 +47,43 @@ module Instance =
                 | None -> getFreePort()
         let address = "127.0.0.1"
         let timeout = defaultArg settings.Timeout (System.TimeSpan.FromMinutes 1.0)
-        let executable = 
+        let execResult = 
             match settings.Executable with
-            | Some exec -> exec
+            | Some exec -> exec |> Ok
             | None -> 
                 match userSettings.Value.Executable with
-                | Some exec -> exec
-                | None -> failwithf "No executable specified."
-        if not (System.IO.File.Exists executable) then
-            failwithf "Executable '%s' doesn't exist, please try to specify the executable by hand via StartSettings or UserSettings." executable
-        let sc2Dir =  executable |> System.IO.Path.GetDirectoryName |> System.IO.Path.GetDirectoryName |> System.IO.Path.GetDirectoryName
-        let supportDir = System.IO.Path.Combine(sc2Dir, "Support64")
-        let proc = System.Diagnostics.ProcessStartInfo(executable)
-        // -dataVersion
-        // -windowwidth
-        // -windowheight
-        // -windowx
-        // -windowy
-        proc.Arguments <- sprintf "-listen %s -port %d -displayMode 0" address port
-        proc.WorkingDirectory <- supportDir
-        printfn "Starting SC2 ... (%s %s)" executable proc.Arguments
-        let processInstance = System.Diagnostics.Process.Start(proc)
+                | Some exec -> exec |> Ok
+                | None -> "No executable specified." |> ConfigError |> Error
 
-        let watch = System.Diagnostics.Stopwatch.StartNew()
-        let mutable connection = None
-        let mutable lastError = null
-        while connection.IsNone && watch.Elapsed < timeout do
-            try
-                let! con = ProtbufConnection.connect address port timeout tok.Token
-                connection <- Some con
-            with :? System.Net.WebSockets.WebSocketException as err ->
-                lastError <- err
-        match connection with
-        | None -> return raise <| System.TimeoutException("Could not connect within the specified time", lastError)
-        | Some connection ->            
-            return { Connection = connection; Process = processInstance } }
+        let checkExecExists s =
+            if not (System.IO.File.Exists s) then
+                s |> ExecutableNotFound |> Error
+            else
+                s |> Ok
+
+        let getInstance executable = async {
+            let sc2Dir =  executable |> System.IO.Path.GetDirectoryName |> System.IO.Path.GetDirectoryName |> System.IO.Path.GetDirectoryName
+            let supportDir = System.IO.Path.Combine(sc2Dir, "Support64")
+            let proc = System.Diagnostics.ProcessStartInfo(executable)
+            // -dataVersion
+            // -windowwidth
+            // -windowheight
+            // -windowx
+            // -windowy
+            proc.Arguments <- sprintf "-listen %s -port %d -displayMode 0" address port
+            proc.WorkingDirectory <- supportDir
+            printfn "Starting SC2 ... (%s %s)" executable proc.Arguments
+            let processInstance = System.Diagnostics.Process.Start(proc)
+            
+            let! connection = ProtobufConnection.connect address port timeout tok.Token
+            return {Connection = connection; Process = processInstance} |> Ok
+        }
+
+        return!
+            execResult
+            |> Result.bind checkExecExists
+            |> Result.bindAsyncBinder getInstance
+        }
 
     type Participant =
         | Participant of Race
@@ -93,7 +97,8 @@ module Instance =
 
     let createGame (instance:Sc2Instance) mapName (participants:Participant list) realTime = async {
         let req = new RequestCreateGame()
-        for player in participants do
+
+        for player in participants do 
             let playerSetup = new PlayerSetup()
             playerSetup.Type <- player.PlayerType
             match player with
@@ -104,6 +109,7 @@ module Instance =
                 playerSetup.Difficulty <- difficulty
             | Observer -> ()
             req.PlayerSetup.Add(playerSetup)
+
         req.Realtime <- realTime
 
         // map
@@ -125,9 +131,7 @@ module Instance =
             req.LocalMap <- localmap
 
         // create the game        
-        let! status = ProtbufConnection.createGame req instance.Connection
-        assert (status = Status.InitGame)
-        return  ()
+        return! ProtobufConnection.createGame req instance.Connection |> Result.bindAsyncInput (checkStatus Status.InitGame GameNotStarted)
     }
 
     type ClientPort =
@@ -152,11 +156,14 @@ module Instance =
             let server_ports = new PortSet()
             server_ports.GamePort <- ports.ServerPorts.GamePort
             server_ports.BasePort <- ports.ServerPorts.BasePort
-            for clientPorts in ports.ClientPorts do
+            ports.ClientPorts
+            |>
+             List.iter (fun clientPorts ->
                 let cl = new PortSet()
                 cl.BasePort <- clientPorts.BasePort
                 cl.GamePort <- clientPorts.GamePort
                 req.ClientPorts.Add(cl)
+             )  
         )
 
         // interface
@@ -170,31 +177,24 @@ module Instance =
         req.Options <- interfaceOpts
 
         // Do the join command
-        let! playerId, status = ProtbufConnection.joinGame req instance.Connection
-        assert (status = Status.InGame)
-
-        return playerId
+        return! ProtobufConnection.joinGame req instance.Connection |> Result.bindAsyncInput (checkStatus Status.InGame GameNotJoined)
     }
     let getGameInfo (instance:Sc2Instance) = async {
         // Do the join command
-        let! gameInfo, status = ProtbufConnection.getGameInfo instance.Connection
-        assert (status = Status.InGame)
-        return gameInfo }
+        return! ProtobufConnection.getGameInfo instance.Connection |> Result.bindAsyncInput (checkStatus Status.InGame GameNotJoined)
+    }
 
     let getObservation disableFog (instance:Sc2Instance) = async {
         // Do the join command
-        let! responseObs, status = ProtbufConnection.getObservation disableFog instance.Connection
-        assert (status = Status.InGame)
-        return responseObs }
+        return! ProtobufConnection.getObservation disableFog instance.Connection |> Result.bindAsyncInput (checkStatus Status.InGame NotInGame)
+    }
 
     let doStep stepSize (instance:Sc2Instance) = async {
         // Do the join command
-        let! status = ProtbufConnection.doStep stepSize instance.Connection
-        assert (status = Status.InGame)
-        return () }
+        return! ProtobufConnection.doStep stepSize instance.Connection |> Result.bindAsyncInput (checkStatus Status.InGame NotInGame)
+    }
 
     let doActions actions (instance:Sc2Instance) = async {
         // Send Actions
-        let! result, status = ProtbufConnection.doActions actions instance.Connection
-        assert (status = Status.InGame)
-        return result }
+        return!ProtobufConnection.doActions actions instance.Connection |> Result.bindAsyncInput (checkStatus Status.InGame NotInGame)
+    }
