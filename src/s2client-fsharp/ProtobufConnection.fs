@@ -1,7 +1,6 @@
 namespace Starcraft2
 open System
 //open SC2APIProtocol
-open Rail
 
 module ProtobufConnection =
     open System.Net.WebSockets
@@ -21,7 +20,7 @@ module ProtobufConnection =
                 with
                 |_ when watch.Elapsed < timeout ->
                     getConnectedSocket()
-                |ex -> ex.Message |> FailedToEstablishConnection |> Error
+                |ex -> ex |> FailedToEstablishConnection |> Error
             getConnectedSocket()
 
         let receiveBuf = System.ArraySegment(Array.zeroCreate (1024*1024))
@@ -36,7 +35,7 @@ module ProtobufConnection =
                 do! client.SendAsync(send, WebSocketMessageType.Binary, true, tok) |> Async.AwaitTask
                 return Ok ()
             with
-            |ex -> return ex.Message |> FailedToSendMessage |> Error
+            |ex -> return ex |> FailedToSendMessage |> Error
         }
 
         let readMessage (client:ClientWebSocket) = async {
@@ -54,7 +53,7 @@ module ProtobufConnection =
                         |WebSocketMessageType.Binary, true -> return Ok (curPos + result.Count)
                         |_ -> return Error ExpectedBinaryResponse
                     with
-                    |ex -> return ex.Message |> FailedToReceiveMessage |> Error
+                    |ex -> return ex |> FailedToReceiveMessage |> Error
             }
 
             let parseFrom finalPos =
@@ -85,13 +84,14 @@ module ProtobufConnection =
                 messageLoop()
             )
 
+        let agent = connectedSocket |> Result.map getAgent
+
         let postSendRequest req (agent:MailboxProcessor<ClientRequest>) =
             agent.PostAndAsyncReply (fun reply -> SendRequest (req, reply))
 
         let sendRequest req = async{
             return!
-                connectedSocket
-                |> Result.map getAgent
+                agent
                 |> Result.bindAsyncBinder (postSendRequest req)
         }
 

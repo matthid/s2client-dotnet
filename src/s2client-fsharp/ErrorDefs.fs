@@ -1,11 +1,11 @@
 ﻿namespace Starcraft2
 
 type ApplicationError =
-    |FailedToEstablishConnection of string
+    |FailedToEstablishConnection of exn
     |SendMessageBufferTooSmall
     |ExpectedBinaryResponse
-    |FailedToSendMessage of string
-    |FailedToReceiveMessage of string
+    |FailedToSendMessage of exn
+    |FailedToReceiveMessage of exn
     |NullResultWithNoError
     |NullResultWithError of string seq
     |ExecutableNotFound of string

@@ -1,7 +1,6 @@
 namespace Starcraft2
 
 open SC2APIProtocol
-open Rail
 
 // manage a starcraft instance
 module Instance =
@@ -62,8 +61,6 @@ module Instance =
             else
                 s |> Ok
 
-        
-
         let getInstance executable = async {
             let sc2Dir =  executable |> System.IO.Path.GetDirectoryName |> System.IO.Path.GetDirectoryName |> System.IO.Path.GetDirectoryName
             let supportDir = System.IO.Path.Combine(sc2Dir, "Support64")
@@ -100,8 +97,8 @@ module Instance =
 
     let createGame (instance:Sc2Instance) mapName (participants:Participant list) realTime = async {
         let req = new RequestCreateGame()
-        participants
-        |> List.iter (fun player ->
+
+        for player in participants do 
             let playerSetup = new PlayerSetup()
             playerSetup.Type <- player.PlayerType
             match player with
@@ -112,7 +109,7 @@ module Instance =
                 playerSetup.Difficulty <- difficulty
             | Observer -> ()
             req.PlayerSetup.Add(playerSetup)
-        )
+
         req.Realtime <- realTime
 
         // map

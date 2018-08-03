@@ -1,6 +1,7 @@
-﻿namespace Rail
+﻿namespace Starcraft2
 
-module Result =
+[<AutoOpen>]
+module internal Result =
 
     // apply either a success function or failure function
     let either successFunc failureFunc twoTrackInput =

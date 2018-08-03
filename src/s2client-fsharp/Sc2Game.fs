@@ -31,7 +31,6 @@ type Sc2Bot = GameState -> SC2APIProtocol.Action list
 type Sc2Observer = GameState -> unit
 
 module Sc2Game =
-    open Rail
     open Instance
 
     type Participant =
@@ -119,13 +118,12 @@ module Sc2Game =
                 match part with
                 |Participant (instance, _, _)
                 |Observer (instance, _) ->
-                    Instance.joinGame instance gameSettings.UseFeatureLayers gameSettings.UseRender part.Simple ports
-                    |> Async.RunSynchronously
-                    |> Result.map Some
-                    |> Result.map attachPart
-                |_ -> None |> attachPart |> Ok
-            )
-            |> Result.listFold
+                    async{
+                        let! playerId = Instance.joinGame instance gameSettings.UseFeatureLayers gameSettings.UseRender part.Simple ports
+                        return playerId |> Result.map Some |> Result.map attachPart
+                    }
+                |_ -> async {return None |> attachPart |> Ok}
+            ) |> Async.Parallel |> Async.RunSynchronously |> List.ofArray |> Result.listFold
 
         return!
             validateParticipants()
